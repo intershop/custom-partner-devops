@@ -1,0 +1,149 @@
+parameters:
+  # Identifies each job uniquely when 'ci-job-template.yml' is used in a loop. 
+  # Can only contain characters, numbers, and underscores.
+  # Also used to extend names of files published in extensions.
+- name: id
+  type: string
+  default: ''
+
+  # Enables an easy integration with custom jobs. 
+  # The parameter will be passed as is to the 'dependsOn' property of the job.
+- name: dependsOn
+  type: string
+  default: ''
+
+  # Enables an easy integration with custom jobs. 
+  # The parameter will be passed as is to the 'condition' property of the job.
+- name: condition
+  type: string
+  default: ''
+
+  # Specifies the name of the agent pool.
+  # The pool name cannot be hardcoded in the pipeline template.
+- name: agentPool
+  type: string
+  default: ''
+
+  # Specifies the maximum job execution time in minutes.
+- name: jobTimeoutInMinutes
+  type: number
+  default: 5
+
+  # Specifies whether future jobs should run even if this job fails.
+- name: jobContinueOnError
+  type: boolean
+  default: false
+
+# Name of the CI pipeline artifact.
+- name: pipelineArtifactName
+  type: string
+  default: image_artifacts
+
+  # Name of the file to be analysed.
+- name: imagePropertiesFile
+  type: string
+  default: imageProperties.yaml
+
+  # CI configuration in Azure Pipeline object format.
+  # This parameter allows you to pass a structured object (key-value pairs) directly in the YAML pipeline.
+  # Example:
+  # ciConfig:
+  #   images:
+  #     - type: icm
+  #       tag: 1.0.0
+  #       name: exampleImage/icm
+  #       registry: "exampleacr.io"
+- name: ciConfig
+  type: object
+  default: {}
+
+  # CI configuration as a JSON string.
+  # This parameter allows you to pass the configuration as a JSON string, which is useful when the configuration is dynamically generated or retrieved from an external source.
+  # If both `ciConfig` (object) and `ciConfigJson` (string) are provided, `ciConfigJson` takes precedence.
+  # Example:
+  # ciConfigJson: |
+  #   {
+  #     "images":[
+  #         {
+  #           "type":"icm",
+  #           "tag":"1.0.0",
+  #           "name":"exampleImage/icm",
+  #           "registry":"exampleacr.io"
+  #         }
+  #     ]
+  #   }
+- name: ciConfigJson
+  type: string
+  default: ""
+
+  # Resource name of this template repository.
+- name: templateRepository
+  type: string
+  default: ci-custom-partner-devops
+
+jobs:
+  - job: ProcessCIConfig${{ parameters.id }}
+    displayName: "Process CI Configuration ${{ parameters.id }}"
+    pool: '${{ parameters.agentPool }}'
+    dependsOn: ${{ parameters.dependsOn }}
+    condition: ${{ parameters.condition }}
+    continueOnError: ${{ parameters.jobContinueOnError }}
+    timeoutInMinutes: ${{ parameters.jobTimeoutInMinutes }}
+    workspace:
+      clean: all
+    variables:
+      TEMP_ID: ${{ parameters.id }}
+      TEMP_CI_CONFIG: ${{ convertToJson(parameters.ciConfig) }}
+      TEMP_CI_CONFIG_JSON: ${{ parameters.ciConfigJson }}
+
+      TEMP_PIPELINE_ARTIFACT_NAME: ${{ parameters.pipelineArtifactName }}
+      TEMP_IMAGE_PROPERTIES_FILE: ${{ parameters.imagePropertiesFile }}
+      TEMP_TEMPLATE_REPOSITORY: ${{ parameters.templateRepository }}
+      TEMP_TEMPLATE_DIRECTORY: $(Pipeline.Workspace)/s/$(TEMP_TEMPLATE_REPOSITORY)
+      TEMP_MD_CONFIG_FILE: $(Pipeline.Workspace)/config$(TEMP_ID).md
+
+      TEMP_CI_CONFIG_DATA: ${{ coalesce(parameters.ciConfigJson, parameters.ciConfigJson, convertToJson(parameters.ciConfig)) }}
+
+    steps:
+      - checkout: ${{ parameters.templateRepository }}
+        clean: true
+        path: s/$(TEMP_TEMPLATE_REPOSITORY)
+        persistCredentials: false
+        fetchDepth: 1
+
+      - task: Bash@3
+        displayName: Validate setup
+        timeoutInMinutes: 1
+        inputs:
+          filePath: '$(TEMP_TEMPLATE_DIRECTORY)/tasks/validate_setup.sh'
+
+      - task: Bash@3
+        displayName: Validate pipeline parameters
+        timeoutInMinutes: 2
+        inputs:
+          filePath: '$(TEMP_TEMPLATE_DIRECTORY)/tasks/validate_parameters.sh'
+
+      - task: Bash@3
+        timeoutInMinutes: 1
+        continueOnError: true
+        displayName: "Generate Properties File"
+        inputs:
+          filePath: '$(TEMP_TEMPLATE_DIRECTORY)/tasks/generate_properties_file.sh'
+
+      - task: Bash@3
+        timeoutInMinutes: 1
+        condition: always()
+        continueOnError: true
+        displayName: "Provide pipeline configuration"
+        inputs:
+          filePath: '$(TEMP_TEMPLATE_DIRECTORY)/tasks/provide_pipeline_informations.sh'
+
+      - task: Bash@3
+        timeoutInMinutes: 1
+        condition: always()
+        continueOnError: true
+        displayName: "Add pipeline tag based on SourceBranch type"
+        inputs:
+          filePath: '$(TEMP_TEMPLATE_DIRECTORY)/tasks/provide_ci_tags.sh'
+        env:
+          BUILD_SOURCE_BRANCH: $(Build.SourceBranch)
