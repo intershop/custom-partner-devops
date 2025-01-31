@@ -79,7 +79,7 @@ parameters:
   # Resource name of this template repository.
 - name: templateRepository
   type: string
-  default: ci-custom-partner-devops
+  default: custom-partner-devops
 
 jobs:
   - job: ProcessCIConfig${{ parameters.id }}
