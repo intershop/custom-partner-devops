@@ -70,6 +70,8 @@ parameters:
         registry: "exampleacr.io"
 ```
 
+**INFO:** The individual `type` values must be unique and are required for proper identification in the CD process.
+
 ### Using `ciConfigJson` (JSON String Format)  
 
 This parameter allows passing the same configuration as a JSON string, which is useful for dynamically generated configurations. If both `ciConfig` and `ciConfigJson` are provided, `ciConfigJson` takes precedence.  
@@ -91,7 +93,9 @@ parameters:
     }
 ```
 
-This metadata is used to track the generated Docker images and their associated attributes.  
+**INFO:** The individual `type` values must be unique and are required for proper identification in the CD process.
+
+This metadata is used to track the generated Docker images and their associated attributes.
 
 ## Important information:
 
