@@ -70,8 +70,6 @@ parameters:
         registry: "exampleacr.io"
 ```
 
-**INFO:** The individual `type` values must be unique and are required for proper identification in the CD process.
-
 ### Using `ciConfigJson` (JSON String Format)  
 
 This parameter allows passing the same configuration as a JSON string, which is useful for dynamically generated configurations. If both `ciConfig` and `ciConfigJson` are provided, `ciConfigJson` takes precedence.  
@@ -92,8 +90,16 @@ parameters:
       ]
     }
 ```
+### Explanation of Values
 
-**INFO:** The individual `type` values must be unique and are required for proper identification in the CD process.
+- images: The name of the list where all image objects must be defined.
+- type: The individual type values must be unique and are required for proper identification in the CD process. It should not be "pwa", "icm", or "iom". Examples of valid types include "customProxy", "customApp<AppName>".
+- tag: The tag of the Docker image created by the CI pipeline.
+- name: The name of the image created by the CI pipeline.
+- registry: The registry where the image created by the CI pipeline is stored.
+
+The full name of the Docker image follows this format:
+`<Registry>/<Name>:<Tag>`
 
 This metadata is used to track the generated Docker images and their associated attributes.
 
